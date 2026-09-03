@@ -2,6 +2,8 @@
 
 Project Pulse is a focused productivity app that makes neglected work visible. It separates tasks that need attention from healthy active work and completed progress.
 
+The public homepage explains the product. The private dashboard requires ChatGPT sign-in, and task records are isolated by the authenticated user ID.
+
 ## MVP
 
 - Create and edit tasks with optional notes and due dates.

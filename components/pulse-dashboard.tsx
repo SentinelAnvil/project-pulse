@@ -374,7 +374,12 @@ export function PulseDashboard({ userName }: { userName: string }) {
               <Activity className="size-4" /> Project Pulse
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">What needs attention?</h1>
-            <p className="mt-2 text-sm text-slate-400">Signed in as {userName} · <a href="/signout-with-chatgpt?return_to=%2F" className="underline underline-offset-4 hover:text-white">Sign out</a></p>
+            <p className="mt-2 text-sm text-slate-400">
+              Signed in as {userName} ·{" "}
+              {/* A plain navigation avoids loading the full client router in the Worker bundle. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a href="/" className="underline underline-offset-4 hover:text-white">Home</a> · <a href="/signout-with-chatgpt?return_to=%2F" className="underline underline-offset-4 hover:text-white">Sign out</a>
+            </p>
           </div>
           <Button size="lg" onClick={() => { setEditing(null); setFormError(null); setDialogOpen(true); }} className="h-11 bg-cyan-300 px-5 text-slate-950 hover:bg-cyan-200">
             <Plus /> Add task
