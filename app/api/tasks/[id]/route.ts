@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { tasks } from "@/db/schema";
 import { taskChangesForAction, taskChangesForEdit, toPublicTask, validateTaskInput } from "@/lib/task-domain.mjs";
@@ -25,7 +25,7 @@ async function taskForUser(id: string, ownerId: string) {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return Response.json({ error: "Sign in is required." }, { status: 401 });
     const { id } = await context.params;
     let body: unknown;
@@ -53,7 +53,7 @@ export async function PUT(request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return Response.json({ error: "Sign in is required." }, { status: 401 });
     const { id } = await context.params;
     let body: unknown;
@@ -92,9 +92,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return Response.json({ error: "Sign in is required." }, { status: 401 });
     const { id } = await context.params;
     const existing = await taskForUser(id, user.id);

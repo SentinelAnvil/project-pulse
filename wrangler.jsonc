@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "project-pulse",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "project-pulse-production",
+      "database_id": "7a363c8e-b602-4749-bd96-9af26345aa81",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "vars": {
+    "SUPABASE_URL": "http://supabase.test",
+    "SUPABASE_PUBLISHABLE_KEY": "test-publishable-key"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

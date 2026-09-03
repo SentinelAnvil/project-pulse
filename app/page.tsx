@@ -6,9 +6,6 @@ import {
   Clock3,
   ShieldCheck,
 } from "lucide-react";
-import { chatGPTSignInPath, getChatGPTUser } from "@/app/chatgpt-auth";
-
-export const dynamic = "force-dynamic";
 
 const exampleTasks = [
   { title: "Book the dentist appointment", detail: "Untouched for 9 days", tone: "amber" },
@@ -16,11 +13,7 @@ const exampleTasks = [
   { title: "Submit the expense report", detail: "Completed today", tone: "emerald" },
 ] as const;
 
-export default async function Home() {
-  const user = await getChatGPTUser();
-  const destination = user ? "/dashboard" : chatGPTSignInPath("/dashboard");
-  const action = user ? "Open your dashboard" : "Sign in to start";
-
+export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#070c16] text-slate-100">
       <div
@@ -35,11 +28,10 @@ export default async function Home() {
             Project Pulse
           </div>
           <a
-            href={destination}
-            target={user ? undefined : "_top"}
+            href="/login"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/12 bg-white/5 px-4 text-sm font-semibold text-white transition hover:border-cyan-300/40 hover:bg-white/10"
           >
-            {user ? "Dashboard" : "Sign in"}
+            Sign in
             <ArrowRight className="size-4" aria-hidden="true" />
           </a>
         </header>
@@ -57,11 +49,10 @@ export default async function Home() {
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
-                href={destination}
-                target={user ? undefined : "_top"}
+                href="/login"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-6 text-base font-semibold text-slate-950 transition hover:bg-cyan-200"
               >
-                {action}
+                Sign in to start
                 <ArrowRight className="size-4" aria-hidden="true" />
               </a>
               <span className="inline-flex items-center justify-center gap-2 px-3 text-sm text-slate-500 sm:justify-start">

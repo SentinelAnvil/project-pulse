@@ -246,7 +246,15 @@ function TaskSection({ title, description, tasks, tone, busyId, onEdit, onAction
   );
 }
 
-export function PulseDashboard({ userName }: { userName: string }) {
+export function PulseDashboard({
+  userName,
+  accessToken,
+  onSignOut,
+}: {
+  userName: string;
+  accessToken: string;
+  onSignOut: () => void;
+}) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -263,7 +271,9 @@ export function PulseDashboard({ userName }: { userName: string }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/tasks");
+      const response = await fetch("/api/tasks", {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setTasks(data.tasks);
@@ -276,7 +286,9 @@ export function PulseDashboard({ userName }: { userName: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/tasks")
+    fetch("/api/tasks", {
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
@@ -292,7 +304,7 @@ export function PulseDashboard({ userName }: { userName: string }) {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
     const refreshClock = () => setClock(Date.now());
@@ -311,7 +323,10 @@ export function PulseDashboard({ userName }: { userName: string }) {
     try {
       const response = await fetch(editing ? `/api/tasks/${editing.id}` : "/api/tasks", {
         method: editing ? "PUT" : "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify(input),
       });
       const data = await response.json();
@@ -333,7 +348,10 @@ export function PulseDashboard({ userName }: { userName: string }) {
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ action }),
       });
       const data = await response.json();
@@ -351,7 +369,10 @@ export function PulseDashboard({ userName }: { userName: string }) {
     setBusyId(task.id);
     setError(null);
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
       if (!response.ok) throw new Error("The task could not be deleted.");
       setTasks((current) => current.filter((item) => item.id !== task.id));
       setNotice("Task deleted.");
@@ -378,7 +399,8 @@ export function PulseDashboard({ userName }: { userName: string }) {
               Signed in as {userName} ·{" "}
               {/* A plain navigation avoids loading the full client router in the Worker bundle. */}
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a href="/" className="underline underline-offset-4 hover:text-white">Home</a> · <a href="/signout-with-chatgpt?return_to=%2F" className="underline underline-offset-4 hover:text-white">Sign out</a>
+              <a href="/" className="underline underline-offset-4 hover:text-white">Home</a> ·{" "}
+              <button type="button" onClick={onSignOut} className="underline underline-offset-4 hover:text-white">Sign out</button>
             </p>
           </div>
           <Button size="lg" onClick={() => { setEditing(null); setFormError(null); setDialogOpen(true); }} className="h-11 bg-cyan-300 px-5 text-slate-950 hover:bg-cyan-200">
