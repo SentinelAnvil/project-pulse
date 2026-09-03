@@ -1,9 +1,5 @@
-import { PulseDashboard } from "@/components/pulse-dashboard";
-import { requireChatGPTUser } from "@/app/chatgpt-auth";
+import { AuthGate } from "@/components/auth-gate";
 
-export const dynamic = "force-dynamic";
-
-export default async function Dashboard() {
-  const user = await requireChatGPTUser("/dashboard");
-  return <PulseDashboard userName={user.displayName} />;
+export default function Dashboard() {
+  return <AuthGate />;
 }

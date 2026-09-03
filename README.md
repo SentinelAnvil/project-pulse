@@ -2,7 +2,7 @@
 
 Project Pulse is a focused productivity app that makes neglected work visible. It separates tasks that need attention from healthy active work and completed progress.
 
-The public homepage explains the product. The private dashboard requires ChatGPT sign-in, and task records are isolated by the authenticated user ID.
+The public homepage explains the product. The private dashboard uses passwordless email authentication through Supabase, and task records are isolated by the authenticated user ID.
 
 ## MVP
 
@@ -20,7 +20,9 @@ npm run db:generate
 npm test
 ```
 
-The application is built with TypeScript, React, Vinext, Drizzle, and Cloudflare D1. Deployment configuration lives in `.openai/hosting.json`.
+The application is built with TypeScript, React, Vinext, Supabase Auth, Drizzle, Cloudflare Workers, and Cloudflare D1.
+
+Production is deployed automatically after the required GitHub verification job succeeds on `main`. The deployment workflow applies D1 migrations before publishing the Worker.
 
 ## Agent experiment
 

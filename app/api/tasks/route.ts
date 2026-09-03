@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { tasks } from "@/db/schema";
 import { createTaskRecord, toPublicTask, validateTaskInput } from "@/lib/task-domain.mjs";
@@ -12,9 +12,9 @@ function routeError(error: unknown) {
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return Response.json({ error: "Sign in is required." }, { status: 401 });
     const rows = await getDb()
       .select()
@@ -29,7 +29,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return Response.json({ error: "Sign in is required." }, { status: 401 });
     let body: unknown;
     try {

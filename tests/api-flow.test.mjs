@@ -6,13 +6,14 @@ import { Miniflare } from "miniflare";
 
 const ownerHeaders = {
   "content-type": "application/json",
-  "oai-authenticated-user-id": "owner-a",
-  "oai-authenticated-user-email": "owner-a@example.com",
+  "x-auth-test-secret": "integration-test-secret",
+  "x-auth-test-user-id": "owner-a",
+  "x-auth-test-user-email": "owner-a@example.com",
 };
 const otherOwnerHeaders = {
   ...ownerHeaders,
-  "oai-authenticated-user-id": "owner-b",
-  "oai-authenticated-user-email": "owner-b@example.com",
+  "x-auth-test-user-id": "owner-b",
+  "x-auth-test-user-email": "owner-b@example.com",
 };
 
 test("authenticated API persists and isolates the complete task workflow", async (context) => {
@@ -23,6 +24,11 @@ test("authenticated API persists and isolates the complete task workflow", async
     modulesRules: [{ type: "ESModule", include: ["**/*.js"] }],
     compatibilityDate: "2026-05-15",
     compatibilityFlags: ["nodejs_compat"],
+    bindings: {
+      SUPABASE_URL: "http://supabase.test",
+      SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
+      AUTH_TEST_SECRET: "integration-test-secret",
+    },
     d1Databases: { DB: "project-pulse-test" },
     assets: {
       directory: resolve("dist/client"),
@@ -45,18 +51,31 @@ test("authenticated API persists and isolates the complete task workflow", async
   assert.equal(publicHome.status, 200);
   assert.match(await publicHome.text(), /Stop letting important work quietly disappear/);
 
-  const protectedDashboard = await request("/dashboard", { redirect: "manual" });
-  assert.ok([302, 303, 307, 308].includes(protectedDashboard.status));
-  const signInLocation = new URL(protectedDashboard.headers.get("location"));
-  assert.equal(signInLocation.pathname, "/signin-with-chatgpt");
-  assert.equal(signInLocation.searchParams.get("return_to"), "/dashboard");
+  const login = await request("/login");
+  assert.equal(login.status, 200);
+  assert.match(await login.text(), /Sign in to your dashboard/);
 
-  const signedInDashboard = await request("/dashboard", { headers: ownerHeaders });
-  assert.equal(signedInDashboard.status, 200);
-  assert.match(await signedInDashboard.text(), /What needs attention\?/);
+  const dashboardShell = await request("/dashboard");
+  assert.equal(dashboardShell.status, 200);
+  assert.match(await dashboardShell.text(), /Checking your session/);
+
+  const authConfig = await request("/api/auth/config");
+  assert.equal(authConfig.status, 200);
+  assert.deepEqual(await authConfig.json(), {
+    url: "http://supabase.test",
+    publishableKey: "test-publishable-key",
+  });
 
   const unauthorized = await request("/api/tasks");
   assert.equal(unauthorized.status, 401);
+
+  const legacyChatGPTHeaders = await request("/api/tasks", {
+    headers: {
+      "oai-authenticated-user-id": "legacy-owner",
+      "oai-authenticated-user-email": "legacy@example.com",
+    },
+  });
+  assert.equal(legacyChatGPTHeaders.status, 401);
 
   const malformed = await request("/api/tasks", {
     method: "POST",

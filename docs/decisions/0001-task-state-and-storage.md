@@ -8,7 +8,7 @@ Accepted — 2026-09-03
 
 Store task status and timestamps in Cloudflare D1, but derive whether a task is neglected whenever it is displayed. An active task is neglected when its due date is before the user's current date or seven full 24-hour periods have passed since `lastTouchedAt`.
 
-Every task is also scoped to the stable user ID supplied by ChatGPT authentication. Both the page and API require sign-in, and every database query enforces ownership.
+Every task is also scoped to a stable, verified authentication-provider user ID. The API requires sign-in, and every database query enforces ownership. See ADR 0002 for the current standalone identity provider.
 
 ## Why
 
