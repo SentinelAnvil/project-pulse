@@ -41,6 +41,20 @@ test("authenticated API persists and isolates the complete task workflow", async
   const request = (path, init = {}) =>
     miniflare.dispatchFetch(`http://project-pulse.test${path}`, init);
 
+  const publicHome = await request("/");
+  assert.equal(publicHome.status, 200);
+  assert.match(await publicHome.text(), /Stop letting important work quietly disappear/);
+
+  const protectedDashboard = await request("/dashboard", { redirect: "manual" });
+  assert.ok([302, 303, 307, 308].includes(protectedDashboard.status));
+  const signInLocation = new URL(protectedDashboard.headers.get("location"));
+  assert.equal(signInLocation.pathname, "/signin-with-chatgpt");
+  assert.equal(signInLocation.searchParams.get("return_to"), "/dashboard");
+
+  const signedInDashboard = await request("/dashboard", { headers: ownerHeaders });
+  assert.equal(signedInDashboard.status, 200);
+  assert.match(await signedInDashboard.text(), /What needs attention\?/);
+
   const unauthorized = await request("/api/tasks");
   assert.equal(unauthorized.status, 401);
 
