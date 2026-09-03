@@ -147,6 +147,7 @@ type TaskCardProps = {
 
 function TaskCard({ task, tone, busy, onEdit, onAction, onDelete }: TaskCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const edge = tone === "neglected" ? "border-l-amber-400" : tone === "completed" ? "border-l-emerald-400" : "border-l-cyan-400";
 
   return (
@@ -158,7 +159,38 @@ function TaskCard({ task, tone, busy, onEdit, onAction, onDelete }: TaskCardProp
           </h3>
           {task.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">{task.description}</p>}
         </div>
-        <MoreHorizontal aria-hidden="true" className="mt-1 size-4 shrink-0 text-slate-600" />
+        <div className="relative shrink-0">
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            disabled={busy}
+            aria-label={`More actions for ${task.title}`}
+            aria-expanded={actionsOpen}
+            onClick={() => setActionsOpen((open) => !open)}
+            className="text-slate-500 hover:text-white"
+          >
+            <MoreHorizontal />
+          </Button>
+          {actionsOpen && (
+            <div className="absolute right-0 top-10 z-10 grid min-w-32 gap-1 rounded-xl border border-white/10 bg-[#111b2d] p-1.5 shadow-2xl">
+              <button
+                type="button"
+                onClick={() => { setActionsOpen(false); onEdit(task); }}
+                className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left text-sm text-slate-200 hover:bg-white/10"
+              >
+                <Pencil className="size-4" /> Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActionsOpen(false); setConfirmDelete(true); }}
+                className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left text-sm text-red-300 hover:bg-white/10"
+              >
+                <Trash2 className="size-4" /> Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-400">
@@ -186,14 +218,8 @@ function TaskCard({ task, tone, busy, onEdit, onAction, onDelete }: TaskCardProp
             <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction(task, "touch")} className="border-white/10 bg-transparent hover:bg-white/10">
               <Activity /> Worked on it
             </Button>
-            <Button size="icon-sm" variant="ghost" disabled={busy} onClick={() => onEdit(task)} aria-label={`Edit ${task.title}`}>
-              <Pencil />
-            </Button>
           </>
         )}
-        <Button size="icon-sm" variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)} aria-label={`Delete ${task.title}`} className="text-slate-500 hover:text-red-300">
-          <Trash2 />
-        </Button>
       </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
@@ -414,7 +440,14 @@ export function PulseDashboard({
             <Button size="sm" variant="ghost" onClick={() => void loadTasks()}>Try again</Button>
           </div>
         )}
-        <p className="sr-only" aria-live="polite">{notice}</p>
+        {notice && (
+          <div role="status" className="mt-6 flex items-center justify-between gap-4 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice("")} className="min-h-8 px-2 text-xs font-semibold text-emerald-200 hover:text-white">
+              Dismiss
+            </button>
+          </div>
+        )}
 
         <section aria-label="Task summary" className="grid gap-3 py-7 sm:grid-cols-3">
           {[
