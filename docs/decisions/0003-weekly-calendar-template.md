@@ -27,6 +27,6 @@ This separation matters because a recurring availability template and a specific
 ## Consequences
 
 - Overnight blocks are rejected in version 1 and must be split across two weekdays.
-- Imported schedules can contain at most 200 definitions and 500 expanded weekly blocks.
+- Imported schedules can contain at most 200 definitions and 400 expanded weekly blocks. Inserts are split into nine-row statements so each stays below D1's 100-bound-parameter limit and the full import stays below the free-plan query limit.
 - External Google and Outlook synchronization remains out of scope.
 - A future dated-event/exception layer can be added without rewriting weekly recurrence records.

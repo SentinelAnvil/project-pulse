@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   blocksOverlap,
+  chunkCalendarBlockRecords,
   createCalendarBlockRecord,
   formatTime,
   isValidTimezone,
@@ -65,4 +66,11 @@ test("detects true overlaps but allows adjacent blocks", () => {
   assert.equal(blocksOverlap(first, { dayOfWeek: 0, startMinutes: 570, endMinutes: 630 }), true);
   assert.equal(blocksOverlap(first, { dayOfWeek: 0, startMinutes: 600, endMinutes: 630 }), false);
   assert.equal(blocksOverlap(first, { dayOfWeek: 1, startMinutes: 570, endMinutes: 630 }), false);
+});
+
+test("chunks expanded imports below Cloudflare D1's parameter limit", () => {
+  const records = Array.from({ length: 12 }, (_, index) => ({ id: `block-${index}` }));
+  const chunks = chunkCalendarBlockRecords(records);
+  assert.deepEqual(chunks.map((chunk) => chunk.length), [9, 3]);
+  assert.ok(chunks.every((chunk) => chunk.length * 11 <= 100));
 });
