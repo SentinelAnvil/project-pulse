@@ -205,16 +205,16 @@ export function CalendarDashboard({ userName, accessToken, onSignOut }: { userNa
         {loading ? <div className="mt-8 h-72 animate-pulse rounded-2xl bg-white/[0.035]" /> : (
           <section aria-label="Recurring weekly calendar" className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
             {days.map((day, dayOfWeek) => (
-              <div key={day} className="min-h-56 rounded-2xl border border-white/8 bg-white/[0.025] p-3">
+              <div key={day} className="min-h-56 min-w-0 overflow-hidden rounded-2xl border border-white/8 bg-white/[0.025] p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h2 className="font-semibold text-white">{day}</h2>
                   <button onClick={() => openNew(dayOfWeek)} aria-label={`Add block on ${day}`} className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-white/10 hover:text-white"><Plus className="size-4" /></button>
                 </div>
-                <div className="grid gap-2">
+                <div className="min-w-0 grid gap-2">
                   {grouped[dayOfWeek].map((block) => {
                     const category = categoryInfo(block.category);
                     return (
-                      <article key={block.id} className={`rounded-xl border p-3 ${category.style}`}>
+                      <article key={block.id} className={`min-w-0 overflow-hidden rounded-xl border p-3 ${category.style}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold">{block.title}</p>
@@ -222,12 +222,12 @@ export function CalendarDashboard({ userName, accessToken, onSignOut }: { userNa
                           </div>
                           {block.category === "protected" && <ShieldCheck className="size-4 shrink-0" aria-label="Protected time" />}
                         </div>
-                        {block.notes && <p className="mt-2 line-clamp-2 text-xs leading-5 opacity-75">{block.notes}</p>}
-                        <div className="mt-3 flex items-center justify-between gap-1">
-                          <button onClick={() => openTask(block)} className="flex min-h-7 items-center gap-1.5 rounded-md px-1.5 text-xs font-semibold hover:bg-black/15" aria-label={`Create task from ${block.title}`}><ListPlus className="size-3.5" /> Create task</button>
-                          <div className="flex gap-1">
-                          <button onClick={() => openEdit(block)} aria-label={`Edit ${block.title}`} className="grid size-7 place-items-center rounded-md hover:bg-black/15"><Pencil className="size-3.5" /></button>
-                          <button onClick={() => setDeleting(block)} aria-label={`Delete ${block.title}`} className="grid size-7 place-items-center rounded-md hover:bg-black/15"><Trash2 className="size-3.5" /></button>
+                        {block.notes && <p className="mt-2 line-clamp-2 break-words text-xs leading-5 opacity-75">{block.notes}</p>}
+                        <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
+                          <button onClick={() => openTask(block)} className="flex min-h-7 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-xs font-semibold hover:bg-black/15" aria-label={`Create task from ${block.title}`}><ListPlus className="size-3.5 shrink-0" /> <span className="truncate">Create task</span></button>
+                          <div className="flex shrink-0 gap-1">
+                            <button onClick={() => openEdit(block)} aria-label={`Edit ${block.title}`} className="grid size-7 place-items-center rounded-md hover:bg-black/15"><Pencil className="size-3.5" /></button>
+                            <button onClick={() => setDeleting(block)} aria-label={`Delete ${block.title}`} className="grid size-7 place-items-center rounded-md hover:bg-black/15"><Trash2 className="size-3.5" /></button>
                           </div>
                         </div>
                       </article>
