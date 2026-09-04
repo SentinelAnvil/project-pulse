@@ -225,6 +225,19 @@ test("authenticated API persists and isolates the complete task workflow", async
   assert.equal(importResponse.status, 201);
   assert.deepEqual(await importResponse.json(), { importedCount: 1, skippedCount: 1, timezone: "Europe/Stockholm" });
 
+  const twelveBlockSchedule = {
+    version: 1,
+    timezone: "Europe/Stockholm",
+    blocks: [
+      { title: "Office work", category: "fixed", days: ["monday", "tuesday", "thursday"], start: "07:00", end: "15:30" },
+      { title: "Hold the Island", category: "protected", days: ["wednesday", "friday"], start: "09:00", end: "10:30" },
+      { title: "Daily walk", category: "routine", days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], start: "16:00", end: "16:40" },
+    ],
+  };
+  const twelveBlockImport = await request("/api/calendar/import", { method: "POST", headers: ownerHeaders, body: JSON.stringify(twelveBlockSchedule) });
+  assert.equal(twelveBlockImport.status, 201);
+  assert.deepEqual(await twelveBlockImport.json(), { importedCount: 11, skippedCount: 1, timezone: "Europe/Stockholm" });
+
   const editedBlockResponse = await request(`/api/calendar/blocks/${createdBlock.id}`, {
     method: "PUT",
     headers: ownerHeaders,

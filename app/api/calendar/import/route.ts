@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/db";
 import { calendarBlocks, calendarSettings } from "@/db/schema";
-import { createCalendarBlockRecord, validateScheduleImport } from "@/lib/calendar-domain.mjs";
+import { chunkCalendarBlockRecords, createCalendarBlockRecord, validateScheduleImport } from "@/lib/calendar-domain.mjs";
 
 function exactKey(block: { dayOfWeek: number; startMinutes: number; endMinutes: number; title: string; category: string }) {
   return [block.dayOfWeek, block.startMinutes, block.endMinutes, block.title, block.category].join("|");
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     });
     const now = new Date().toISOString();
     if (uniqueBlocks.length) {
-      await db.insert(calendarBlocks).values(uniqueBlocks.map((block) => {
+      const records = uniqueBlocks.map((block) => {
         const input = {
           title: block.title,
           notes: block.notes,
@@ -44,7 +44,10 @@ export async function POST(request: Request) {
           endMinutes: block.endMinutes,
         };
         return createCalendarBlockRecord(input, now, crypto.randomUUID(), user.id, "import");
-      })).onConflictDoNothing();
+      });
+      for (const chunk of chunkCalendarBlockRecords(records)) {
+        await db.insert(calendarBlocks).values(chunk).onConflictDoNothing();
+      }
     }
     await db.insert(calendarSettings).values({ ownerId: user.id, timezone: result.timezone, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: calendarSettings.ownerId, set: { timezone: result.timezone, updatedAt: now } });
