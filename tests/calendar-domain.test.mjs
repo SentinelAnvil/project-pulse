@@ -10,6 +10,11 @@ import {
   toPublicCalendarBlock,
   validateCalendarBlockInput,
   validateScheduleImport,
+  createTaskScheduleRecord,
+  dateKeyInTimezone,
+  dayOfWeekForDateKey,
+  nextOccurrenceDate,
+  validateTaskOccurrenceDate,
 } from "../lib/calendar-domain.mjs";
 
 test("parses strict 24-hour times and formats stored minutes", () => {
@@ -73,4 +78,44 @@ test("chunks expanded imports below Cloudflare D1's parameter limit", () => {
   const chunks = chunkCalendarBlockRecords(records);
   assert.deepEqual(chunks.map((chunk) => chunk.length), [9, 3]);
   assert.ok(chunks.every((chunk) => chunk.length * 11 <= 100));
+});
+
+test("finds the next local occurrence and advances after the block ends", () => {
+  const beforeBlockEnds = new Date("2026-09-09T05:00:00.000Z"); // 07:00 in Stockholm
+  const afterBlockEnds = new Date("2026-09-09T07:00:00.000Z"); // 09:00 in Stockholm
+  assert.equal(dateKeyInTimezone(beforeBlockEnds, "Europe/Stockholm"), "2026-09-09");
+  assert.equal(dayOfWeekForDateKey("2026-09-09"), 2);
+  assert.equal(nextOccurrenceDate(2, 510, "Europe/Stockholm", beforeBlockEnds), "2026-09-09");
+  assert.equal(nextOccurrenceDate(2, 510, "Europe/Stockholm", afterBlockEnds), "2026-09-16");
+});
+
+test("validates a future occurrence against the recurring block weekday", () => {
+  assert.deepEqual(validateTaskOccurrenceDate("2026-09-09", 2, "2026-09-04"), { value: "2026-09-09" });
+  assert.match(validateTaskOccurrenceDate("2026-09-10", 2, "2026-09-04").error, /wednesday/);
+  assert.match(validateTaskOccurrenceDate("2026-09-02", 2, "2026-09-04").error, /future/);
+  assert.match(validateTaskOccurrenceDate("2026-02-30", 2, "2026-09-04").error, /real/);
+});
+
+test("creates a reservation that snapshots the block time and timezone", () => {
+  const now = "2026-09-04T09:00:00.000Z";
+  assert.deepEqual(createTaskScheduleRecord({
+    taskId: "task-1",
+    ownerId: "owner-a",
+    sourceBlockId: "block-1",
+    scheduledDate: "2026-09-09",
+    startMinutes: 390,
+    endMinutes: 510,
+    timezone: "Europe/Stockholm",
+  }, now, "schedule-1"), {
+    id: "schedule-1",
+    taskId: "task-1",
+    ownerId: "owner-a",
+    sourceBlockId: "block-1",
+    scheduledDate: "2026-09-09",
+    startMinutes: 390,
+    endMinutes: 510,
+    timezone: "Europe/Stockholm",
+    createdAt: now,
+    updatedAt: now,
+  });
 });

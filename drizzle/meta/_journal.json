@@ -15,6 +15,13 @@
       "when": 1788508812595,
       "tag": "0001_empty_salo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788511792256,
+      "tag": "0002_round_longshot",
+      "breakpoints": true
     }
   ]
 }

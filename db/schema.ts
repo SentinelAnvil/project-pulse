@@ -19,6 +19,26 @@ export const tasks = sqliteTable(
   (table) => [index("idx_tasks_owner_id").on(table.ownerId)],
 );
 
+export const taskSchedules = sqliteTable(
+  "task_schedules",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id").notNull(),
+    ownerId: text("owner_id").notNull(),
+    sourceBlockId: text("source_block_id"),
+    scheduledDate: text("scheduled_date").notNull(),
+    startMinutes: integer("start_minutes").notNull(),
+    endMinutes: integer("end_minutes").notNull(),
+    timezone: text("timezone").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_task_schedules_task_unique").on(table.taskId),
+    index("idx_task_schedules_owner_date").on(table.ownerId, table.scheduledDate),
+  ],
+);
+
 export const calendarSettings = sqliteTable("calendar_settings", {
   ownerId: text("owner_id").primaryKey(),
   timezone: text("timezone").notNull().default("UTC"),
