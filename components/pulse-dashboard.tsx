@@ -426,6 +426,7 @@ export function PulseDashboard({
               {/* A plain navigation avoids loading the full client router in the Worker bundle. */}
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/" className="underline underline-offset-4 hover:text-white">Home</a> ·{" "}
+              <a href="/calendar" className="underline underline-offset-4 hover:text-white">Calendar</a> ·{" "}
               <button type="button" onClick={onSignOut} className="underline underline-offset-4 hover:text-white">Sign out</button>
             </p>
           </div>

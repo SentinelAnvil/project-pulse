@@ -8,6 +8,13 @@
       "when": 1788429565711,
       "tag": "0000_blue_colleen_wing",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788508812595,
+      "tag": "0001_empty_salo",
+      "breakpoints": true
     }
   ]
 }

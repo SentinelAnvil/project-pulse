@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
 import { Miniflare } from "miniflare";
@@ -39,9 +39,12 @@ test("authenticated API persists and isolates the complete task workflow", async
   context.after(() => miniflare.dispose());
 
   const database = await miniflare.getD1Database("DB");
-  const migration = await readFile(resolve("drizzle/0000_blue_colleen_wing.sql"), "utf8");
-  for (const statement of migration.split("--> statement-breakpoint").map((sql) => sql.trim()).filter(Boolean)) {
-    await database.prepare(statement).run();
+  const migrationFiles = (await readdir(resolve("drizzle"))).filter((file) => file.endsWith(".sql")).sort();
+  for (const file of migrationFiles) {
+    const migration = await readFile(resolve("drizzle", file), "utf8");
+    for (const statement of migration.split("--> statement-breakpoint").map((sql) => sql.trim()).filter(Boolean)) {
+      await database.prepare(statement).run();
+    }
   }
 
   const request = (path, init = {}) =>
@@ -59,6 +62,14 @@ test("authenticated API persists and isolates the complete task workflow", async
   assert.equal(dashboardShell.status, 200);
   assert.match(await dashboardShell.text(), /Checking your session/);
 
+  const calendarShell = await request("/calendar");
+  assert.equal(calendarShell.status, 200);
+  assert.match(await calendarShell.text(), /Checking your session/);
+
+  const importShell = await request("/calendar/import");
+  assert.equal(importShell.status, 200);
+  assert.match(await importShell.text(), /Checking your session/);
+
   const authConfig = await request("/api/auth/config");
   assert.equal(authConfig.status, 200);
   assert.deepEqual(await authConfig.json(), {
@@ -68,6 +79,9 @@ test("authenticated API persists and isolates the complete task workflow", async
 
   const unauthorized = await request("/api/tasks");
   assert.equal(unauthorized.status, 401);
+
+  const unauthorizedCalendar = await request("/api/calendar");
+  assert.equal(unauthorizedCalendar.status, 401);
 
   const legacyChatGPTHeaders = await request("/api/tasks", {
     headers: {
@@ -154,4 +168,71 @@ test("authenticated API persists and isolates the complete task workflow", async
 
   const finalList = await request("/api/tasks", { headers: ownerHeaders });
   assert.deepEqual((await finalList.json()).tasks, []);
+
+  const timezoneResponse = await request("/api/calendar/settings", {
+    method: "PUT",
+    headers: ownerHeaders,
+    body: JSON.stringify({ timezone: "Europe/Stockholm" }),
+  });
+  assert.equal(timezoneResponse.status, 200);
+
+  const invalidBlock = await request("/api/calendar/blocks", {
+    method: "POST",
+    headers: ownerHeaders,
+    body: JSON.stringify({ title: "Overnight", category: "fixed", dayOfWeek: 0, startTime: "22:00", endTime: "06:00" }),
+  });
+  assert.equal(invalidBlock.status, 400);
+
+  const createdBlockResponse = await request("/api/calendar/blocks", {
+    method: "POST",
+    headers: ownerHeaders,
+    body: JSON.stringify({ title: "Deep work", notes: "No meetings", category: "protected", dayOfWeek: 0, startTime: "09:00", endTime: "10:30" }),
+  });
+  assert.equal(createdBlockResponse.status, 201);
+  const createdBlock = (await createdBlockResponse.json()).block;
+  assert.equal("ownerId" in createdBlock, false);
+
+  const ownerCalendar = await request("/api/calendar", { headers: ownerHeaders });
+  const ownerCalendarData = await ownerCalendar.json();
+  assert.equal(ownerCalendarData.timezone, "Europe/Stockholm");
+  assert.deepEqual(ownerCalendarData.blocks.map(({ id }) => id), [createdBlock.id]);
+
+  const isolatedCalendar = await request("/api/calendar", { headers: otherOwnerHeaders });
+  assert.deepEqual((await isolatedCalendar.json()).blocks, []);
+
+  const crossOwnerCalendarMutation = await request(`/api/calendar/blocks/${createdBlock.id}`, {
+    method: "DELETE",
+    headers: otherOwnerHeaders,
+  });
+  assert.equal(crossOwnerCalendarMutation.status, 404);
+
+  const schedule = {
+    version: 1,
+    timezone: "Europe/Stockholm",
+    blocks: [
+      { title: "Deep work", notes: "Duplicate notes do not matter", category: "protected", days: ["monday"], start: "09:00", end: "10:30" },
+      { title: "Daily walk", category: "routine", days: ["tuesday"], start: "16:00", end: "16:40" },
+    ],
+  };
+  const previewResponse = await request("/api/calendar/import/preview", { method: "POST", headers: ownerHeaders, body: JSON.stringify(schedule) });
+  assert.equal(previewResponse.status, 200);
+  const preview = await previewResponse.json();
+  assert.equal(preview.valid, true);
+  assert.equal(preview.duplicateCount, 1);
+  assert.equal(preview.blocks.length, 2);
+
+  const importResponse = await request("/api/calendar/import", { method: "POST", headers: ownerHeaders, body: JSON.stringify(schedule) });
+  assert.equal(importResponse.status, 201);
+  assert.deepEqual(await importResponse.json(), { importedCount: 1, skippedCount: 1, timezone: "Europe/Stockholm" });
+
+  const editedBlockResponse = await request(`/api/calendar/blocks/${createdBlock.id}`, {
+    method: "PUT",
+    headers: ownerHeaders,
+    body: JSON.stringify({ title: "Protected focus", notes: "", category: "focus", dayOfWeek: 2, startTime: "09:30", endTime: "11:00" }),
+  });
+  assert.equal(editedBlockResponse.status, 200);
+  assert.equal((await editedBlockResponse.json()).block.source, "manual");
+
+  const deletedBlockResponse = await request(`/api/calendar/blocks/${createdBlock.id}`, { method: "DELETE", headers: ownerHeaders });
+  assert.equal(deletedBlockResponse.status, 204);
 });
