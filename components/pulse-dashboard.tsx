@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CalendarDays,
+  CalendarClock,
   Check,
   CheckCircle2,
   CircleDot,
@@ -194,6 +195,9 @@ function TaskCard({ task, tone, busy, onEdit, onAction, onDelete }: TaskCardProp
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-400">
+        {task.schedule && (
+          <span className="inline-flex items-center gap-1.5 text-cyan-200"><CalendarClock className="size-3.5" />Scheduled {readableDate(task.schedule.date)} · {task.schedule.startTime}–{task.schedule.endTime}</span>
+        )}
         {tone === "neglected" ? (
           <span className="inline-flex items-center gap-1.5 text-amber-300"><Clock3 className="size-3.5" />{attentionLabel(task)}</span>
         ) : tone === "completed" && task.completedAt ? (

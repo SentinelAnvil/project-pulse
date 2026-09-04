@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { tasks } from "@/db/schema";
+import { taskSchedules, tasks } from "@/db/schema";
 import { taskChangesForAction, taskChangesForEdit, toPublicTask, validateTaskInput } from "@/lib/task-domain.mjs";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -15,12 +15,12 @@ function routeError(error: unknown) {
 }
 
 async function taskForUser(id: string, ownerId: string) {
-  const [task] = await getDb()
-    .select()
-    .from(tasks)
-    .where(and(eq(tasks.id, id), eq(tasks.ownerId, ownerId)))
-    .limit(1);
-  return task;
+  const db = getDb();
+  const [taskRows, scheduleRows] = await Promise.all([
+    db.select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.ownerId, ownerId))).limit(1),
+    db.select().from(taskSchedules).where(and(eq(taskSchedules.taskId, id), eq(taskSchedules.ownerId, ownerId))).limit(1),
+  ]);
+  return taskRows[0] ? { task: taskRows[0], schedule: scheduleRows[0] } : null;
 }
 
 export async function PUT(request: Request, context: RouteContext) {
@@ -44,7 +44,7 @@ export async function PUT(request: Request, context: RouteContext) {
       .where(and(eq(tasks.id, id), eq(tasks.ownerId, user.id)));
     const task = await taskForUser(id, user.id);
     return task
-      ? Response.json({ task: toPublicTask(task) })
+      ? Response.json({ task: toPublicTask(task.task, task.schedule) })
       : Response.json({ error: "Task not found." }, { status: 404 });
   } catch (error) {
     return routeError(error);
@@ -74,11 +74,11 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const existing = await taskForUser(id, user.id);
     if (!existing) return Response.json({ error: "Task not found." }, { status: 404 });
-    if (action === "touch" && existing.status !== "active") {
+    if (action === "touch" && existing.task.status !== "active") {
       return Response.json({ error: "Completed tasks cannot be touched." }, { status: 409 });
     }
-    if ((action === "complete" && existing.status === "completed") || (action === "reopen" && existing.status === "active")) {
-      return Response.json({ task: toPublicTask(existing) });
+    if ((action === "complete" && existing.task.status === "completed") || (action === "reopen" && existing.task.status === "active")) {
+      return Response.json({ task: toPublicTask(existing.task, existing.schedule) });
     }
 
     await getDb()
@@ -86,7 +86,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       .set(changes)
       .where(and(eq(tasks.id, id), eq(tasks.ownerId, user.id)));
     const task = await taskForUser(id, user.id);
-    return Response.json({ task: toPublicTask(task) });
+    return Response.json({ task: toPublicTask(task.task, task.schedule) });
   } catch (error) {
     return routeError(error);
   }
@@ -99,7 +99,11 @@ export async function DELETE(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const existing = await taskForUser(id, user.id);
     if (!existing) return Response.json({ error: "Task not found." }, { status: 404 });
-    await getDb().delete(tasks).where(and(eq(tasks.id, id), eq(tasks.ownerId, user.id)));
+    const db = getDb();
+    await db.batch([
+      db.delete(taskSchedules).where(and(eq(taskSchedules.taskId, id), eq(taskSchedules.ownerId, user.id))),
+      db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.ownerId, user.id))),
+    ]);
     return new Response(null, { status: 204 });
   } catch (error) {
     return routeError(error);

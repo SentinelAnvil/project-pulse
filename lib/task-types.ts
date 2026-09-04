@@ -10,6 +10,13 @@ export type Task = {
   updatedAt: string;
   lastTouchedAt: string;
   completedAt: string | null;
+  schedule: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    timezone: string;
+    sourceBlockId: string | null;
+  } | null;
 };
 
 export type TaskInput = {

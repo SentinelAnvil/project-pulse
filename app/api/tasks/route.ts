@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/db";
-import { tasks } from "@/db/schema";
+import { taskSchedules, tasks } from "@/db/schema";
 import { createTaskRecord, toPublicTask, validateTaskInput } from "@/lib/task-domain.mjs";
 
 function routeError(error: unknown) {
@@ -16,12 +16,13 @@ export async function GET(request: Request) {
   try {
     const user = await getCurrentUser(request);
     if (!user) return Response.json({ error: "Sign in is required." }, { status: 401 });
-    const rows = await getDb()
-      .select()
-      .from(tasks)
-      .where(eq(tasks.ownerId, user.id))
-      .orderBy(desc(tasks.createdAt));
-    return Response.json({ tasks: rows.map(toPublicTask) });
+    const db = getDb();
+    const [rows, schedules] = await Promise.all([
+      db.select().from(tasks).where(eq(tasks.ownerId, user.id)).orderBy(desc(tasks.createdAt)),
+      db.select().from(taskSchedules).where(eq(taskSchedules.ownerId, user.id)),
+    ]);
+    const scheduleByTaskId = new Map(schedules.map((schedule) => [schedule.taskId, schedule]));
+    return Response.json({ tasks: rows.map((task) => toPublicTask(task, scheduleByTaskId.get(task.id))) });
   } catch (error) {
     return routeError(error);
   }

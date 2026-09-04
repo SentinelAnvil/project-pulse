@@ -16,6 +16,14 @@ const otherOwnerHeaders = {
   "x-auth-test-user-email": "owner-b@example.com",
 };
 
+function futureDateForDay(dayOfWeek) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + 14);
+  const mondayBasedDay = date.getUTCDay() === 0 ? 6 : date.getUTCDay() - 1;
+  date.setUTCDate(date.getUTCDate() + ((dayOfWeek - mondayBasedDay + 7) % 7));
+  return date.toISOString().slice(0, 10);
+}
+
 test("authenticated API persists and isolates the complete task workflow", async (context) => {
   const miniflare = new Miniflare({
     modules: true,
@@ -206,6 +214,62 @@ test("authenticated API persists and isolates the complete task workflow", async
   });
   assert.equal(crossOwnerCalendarMutation.status, 404);
 
+  const taskBlockResponse = await request("/api/calendar/blocks", {
+    method: "POST",
+    headers: ownerHeaders,
+    body: JSON.stringify({ title: "Hold the Island", notes: "Protect the launch", category: "focus", dayOfWeek: 2, startTime: "06:30", endTime: "08:30" }),
+  });
+  assert.equal(taskBlockResponse.status, 201);
+  const taskBlock = (await taskBlockResponse.json()).block;
+  const futureWednesday = futureDateForDay(2);
+  const futureThursday = futureDateForDay(3);
+
+  const wrongWeekday = await request(`/api/calendar/blocks/${taskBlock.id}/tasks`, {
+    method: "POST",
+    headers: ownerHeaders,
+    body: JSON.stringify({ scheduledDate: futureThursday }),
+  });
+  assert.equal(wrongWeekday.status, 400);
+  assert.match((await wrongWeekday.json()).error, /wednesday/);
+
+  const crossOwnerTaskFromBlock = await request(`/api/calendar/blocks/${taskBlock.id}/tasks`, {
+    method: "POST",
+    headers: otherOwnerHeaders,
+    body: JSON.stringify({ scheduledDate: futureWednesday }),
+  });
+  assert.equal(crossOwnerTaskFromBlock.status, 404);
+
+  const scheduledTaskResponse = await request(`/api/calendar/blocks/${taskBlock.id}/tasks`, {
+    method: "POST",
+    headers: ownerHeaders,
+    body: JSON.stringify({ scheduledDate: futureWednesday }),
+  });
+  assert.equal(scheduledTaskResponse.status, 201);
+  const scheduledTask = (await scheduledTaskResponse.json()).task;
+  assert.equal(scheduledTask.title, "Hold the Island");
+  assert.equal(scheduledTask.description, "Protect the launch");
+  assert.equal(scheduledTask.dueDate, null);
+  assert.deepEqual(scheduledTask.schedule, {
+    date: futureWednesday,
+    startTime: "06:30",
+    endTime: "08:30",
+    timezone: "Europe/Stockholm",
+    sourceBlockId: taskBlock.id,
+  });
+
+  const taskListWithSchedule = await request("/api/tasks", { headers: ownerHeaders });
+  assert.deepEqual((await taskListWithSchedule.json()).tasks.map(({ id }) => id), [scheduledTask.id]);
+  const otherOwnerTaskList = await request("/api/tasks", { headers: otherOwnerHeaders });
+  assert.deepEqual((await otherOwnerTaskList.json()).tasks, []);
+
+  const calendarAfterTask = await request("/api/calendar", { headers: ownerHeaders });
+  assert.equal((await calendarAfterTask.json()).blocks.some(({ id }) => id === taskBlock.id), true);
+
+  const deletedTaskBlock = await request(`/api/calendar/blocks/${taskBlock.id}`, { method: "DELETE", headers: ownerHeaders });
+  assert.equal(deletedTaskBlock.status, 204);
+  const taskAfterBlockDelete = await request("/api/tasks", { headers: ownerHeaders });
+  assert.equal((await taskAfterBlockDelete.json()).tasks[0].schedule.sourceBlockId, taskBlock.id);
+
   const schedule = {
     version: 1,
     timezone: "Europe/Stockholm",
@@ -248,4 +312,9 @@ test("authenticated API persists and isolates the complete task workflow", async
 
   const deletedBlockResponse = await request(`/api/calendar/blocks/${createdBlock.id}`, { method: "DELETE", headers: ownerHeaders });
   assert.equal(deletedBlockResponse.status, 204);
+
+  const deletedScheduledTask = await request(`/api/tasks/${scheduledTask.id}`, { method: "DELETE", headers: ownerHeaders });
+  assert.equal(deletedScheduledTask.status, 204);
+  const scheduleRows = await database.prepare("SELECT task_id FROM task_schedules WHERE task_id = ?").bind(scheduledTask.id).all();
+  assert.deepEqual(scheduleRows.results, []);
 });

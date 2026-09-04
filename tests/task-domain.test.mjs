@@ -43,6 +43,32 @@ test("removes the private owner key from API output", () => {
   assert.deepEqual(toPublicTask({ id: "task-1", ownerId: "owner-1", title: "Ship" }), {
     id: "task-1",
     title: "Ship",
+    schedule: null,
+  });
+});
+
+test("presents an owner-free dated task schedule", () => {
+  assert.deepEqual(toPublicTask(
+    { id: "task-1", ownerId: "owner-1", title: "Hold the Island" },
+    {
+      ownerId: "owner-1",
+      taskId: "task-1",
+      sourceBlockId: "block-1",
+      scheduledDate: "2026-09-09",
+      startMinutes: 390,
+      endMinutes: 510,
+      timezone: "Europe/Stockholm",
+    },
+  ), {
+    id: "task-1",
+    title: "Hold the Island",
+    schedule: {
+      date: "2026-09-09",
+      startTime: "06:30",
+      endTime: "08:30",
+      timezone: "Europe/Stockholm",
+      sourceBlockId: "block-1",
+    },
   });
 });
 

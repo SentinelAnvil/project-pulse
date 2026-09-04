@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock3, FileJson2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { CalendarDays, Clock3, FileJson2, ListPlus, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { CalendarBlock, CalendarBlockInput, CalendarCategory } from "@/lib/calendar-types";
+import { nextOccurrenceDate, parseTime } from "@/lib/calendar-domain.mjs";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const categories: { value: CalendarCategory; label: string; description: string; style: string }[] = [
@@ -18,6 +19,7 @@ const categories: { value: CalendarCategory; label: string; description: string;
   { value: "routine", label: "Routine", description: "A repeating habit or responsibility", style: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" },
 ];
 const blankBlock: CalendarBlockInput = { title: "", notes: "", category: "fixed", dayOfWeek: 0, startTime: "09:00", endTime: "10:00" };
+type TaskFromBlockForm = { title: string; description: string; scheduledDate: string };
 
 function categoryInfo(category: CalendarCategory) {
   return categories.find((item) => item.value === category) ?? categories[0];
@@ -36,6 +38,8 @@ export function CalendarDashboard({ userName, accessToken, onSignOut }: { userNa
   const [editing, setEditing] = useState<CalendarBlock | null>(null);
   const [form, setForm] = useState<CalendarBlockInput>(blankBlock);
   const [deleting, setDeleting] = useState<CalendarBlock | null>(null);
+  const [taskBlock, setTaskBlock] = useState<CalendarBlock | null>(null);
+  const [taskForm, setTaskForm] = useState<TaskFromBlockForm>({ title: "", description: "", scheduledDate: "" });
 
   useEffect(() => {
     fetch("/api/calendar", { headers: { authorization: `Bearer ${accessToken}` } })
@@ -72,6 +76,38 @@ export function CalendarDashboard({ userName, accessToken, onSignOut }: { userNa
     setForm({ title: block.title, notes: block.notes, category: block.category, dayOfWeek: block.dayOfWeek, startTime: block.startTime, endTime: block.endTime });
     setError("");
     setDialogOpen(true);
+  }
+
+  function openTask(block: CalendarBlock) {
+    setTaskBlock(block);
+    setTaskForm({
+      title: block.title,
+      description: block.notes,
+      scheduledDate: nextOccurrenceDate(block.dayOfWeek, parseTime(block.endTime), timezone),
+    });
+    setError("");
+  }
+
+  async function createTaskFromBlock(event: FormEvent) {
+    event.preventDefault();
+    if (!taskBlock) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/calendar/blocks/${taskBlock.id}/tasks`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify(taskForm),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setTaskBlock(null);
+      setNotice(`Task created for ${taskForm.scheduledDate} at ${taskBlock.startTime}.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The task could not be created from this block.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveBlock(event: FormEvent) {
@@ -187,9 +223,12 @@ export function CalendarDashboard({ userName, accessToken, onSignOut }: { userNa
                           {block.category === "protected" && <ShieldCheck className="size-4 shrink-0" aria-label="Protected time" />}
                         </div>
                         {block.notes && <p className="mt-2 line-clamp-2 text-xs leading-5 opacity-75">{block.notes}</p>}
-                        <div className="mt-2 flex justify-end gap-1">
+                        <div className="mt-3 flex items-center justify-between gap-1">
+                          <button onClick={() => openTask(block)} className="flex min-h-7 items-center gap-1.5 rounded-md px-1.5 text-xs font-semibold hover:bg-black/15" aria-label={`Create task from ${block.title}`}><ListPlus className="size-3.5" /> Create task</button>
+                          <div className="flex gap-1">
                           <button onClick={() => openEdit(block)} aria-label={`Edit ${block.title}`} className="grid size-7 place-items-center rounded-md hover:bg-black/15"><Pencil className="size-3.5" /></button>
                           <button onClick={() => setDeleting(block)} aria-label={`Delete ${block.title}`} className="grid size-7 place-items-center rounded-md hover:bg-black/15"><Trash2 className="size-3.5" /></button>
+                          </div>
                         </div>
                       </article>
                     );
@@ -217,6 +256,25 @@ export function CalendarDashboard({ userName, accessToken, onSignOut }: { userNa
             {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
             <p className="text-xs text-slate-500">{categoryInfo(form.category).description}</p>
             <DialogFooter><Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button><Button type="submit" disabled={busy} className="bg-cyan-300 text-slate-950 hover:bg-cyan-200">{busy ? "Saving…" : "Save block"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(taskBlock)} onOpenChange={(open) => { if (!open) setTaskBlock(null); }}>
+        <DialogContent className="border-white/10 bg-[#101829] text-white sm:max-w-xl">
+          <form onSubmit={createTaskFromBlock} className="grid gap-4">
+            <DialogHeader>
+              <DialogTitle>Create one task from this block</DialogTitle>
+              <DialogDescription className="text-slate-400">The task gets this occurrence; the weekly block continues unchanged.</DialogDescription>
+            </DialogHeader>
+            <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100">
+              {taskBlock && <><span className="font-semibold">{days[taskBlock.dayOfWeek]}</span> · {taskBlock.startTime}–{taskBlock.endTime} · {timezone}</>}
+            </div>
+            <label className="grid gap-2 text-sm">Task title<Input autoFocus required maxLength={120} value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} className="border-white/10 bg-white/5" /></label>
+            <label className="grid gap-2 text-sm">Occurrence date<Input required type="date" value={taskForm.scheduledDate} onChange={(event) => setTaskForm({ ...taskForm, scheduledDate: event.target.value })} className="border-white/10 bg-white/5 [color-scheme:dark]" /><span className="text-xs text-slate-500">Choose a {taskBlock ? days[taskBlock.dayOfWeek] : "matching weekday"}; this does not create future copies.</span></label>
+            <label className="grid gap-2 text-sm">Notes <span className="sr-only">optional</span><Textarea maxLength={2000} value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} className="min-h-24 border-white/10 bg-white/5" /></label>
+            {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+            <DialogFooter><Button type="button" variant="ghost" onClick={() => setTaskBlock(null)} disabled={busy}>Cancel</Button><Button type="submit" disabled={busy || !taskForm.title.trim() || !taskForm.scheduledDate} className="bg-cyan-300 text-slate-950 hover:bg-cyan-200">{busy ? "Creating…" : "Create task"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
