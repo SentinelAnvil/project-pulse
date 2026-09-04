@@ -2,7 +2,7 @@
 
 Project Pulse is a focused productivity app that makes neglected work visible. It separates tasks that need attention from healthy active work and completed progress.
 
-The public homepage explains the product. The private dashboard uses passwordless email authentication through Supabase, and task records are isolated by the authenticated user ID.
+The public homepage explains the product. The private dashboard and weekly calendar use passwordless email authentication through Supabase, and all records are isolated by the authenticated user ID.
 
 ## MVP
 
@@ -11,6 +11,8 @@ The public homepage explains the product. The private dashboard uses passwordles
 - Record renewed attention with **Worked on it**.
 - Complete, reopen, and delete tasks.
 - Persist all task data in Cloudflare D1.
+- Maintain recurring weekly blocks across fixed, protected, focus, flexible, and routine time.
+- Validate and preview a versioned Project Pulse JSON schedule before importing it.
 
 ## Development
 
@@ -23,6 +25,8 @@ npm test
 The application is built with TypeScript, React, Vinext, Supabase Auth, Drizzle, Cloudflare Workers, and Cloudflare D1.
 
 Production is deployed automatically after the required GitHub verification job succeeds on `main`. The deployment workflow applies D1 migrations before publishing the Worker.
+
+The JSON import format is documented by [the version 1 schema](docs/project-pulse-schedule-v1.schema.json). Imports merge with the existing weekly calendar and skip exact duplicates; they never replace existing blocks.
 
 ## Agent experiment
 

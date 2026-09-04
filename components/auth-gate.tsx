@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Activity } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { PulseDashboard } from "@/components/pulse-dashboard";
+import { CalendarDashboard } from "@/components/calendar-dashboard";
+import { CalendarImport } from "@/components/calendar-import";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type AuthState =
@@ -11,7 +13,7 @@ type AuthState =
   | { status: "error"; message: string }
   | { status: "ready"; user: User; accessToken: string };
 
-export function AuthGate() {
+export function AuthGate({ view = "dashboard" }: { view?: "dashboard" | "calendar" | "calendar-import" }) {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export function AuthGate() {
           return;
         }
         if (!data.session) {
-          window.location.replace("/login?next=%2Fdashboard");
+          window.location.replace(`/login?next=${encodeURIComponent(view === "dashboard" ? "/dashboard" : view === "calendar" ? "/calendar" : "/calendar/import")}`);
           return;
         }
 
@@ -61,7 +63,7 @@ export function AuthGate() {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [view]);
 
   async function signOut() {
     const client = await getSupabaseBrowserClient();
@@ -75,13 +77,10 @@ export function AuthGate() {
         auth.user.user_metadata.full_name) ||
       auth.user.email ||
       "Project Pulse user";
-    return (
-      <PulseDashboard
-        userName={name}
-        accessToken={auth.accessToken}
-        onSignOut={() => void signOut()}
-      />
-    );
+    const shared = { userName: name, accessToken: auth.accessToken, onSignOut: () => void signOut() };
+    if (view === "calendar") return <CalendarDashboard {...shared} />;
+    if (view === "calendar-import") return <CalendarImport {...shared} />;
+    return <PulseDashboard {...shared} />;
   }
 
   return (
